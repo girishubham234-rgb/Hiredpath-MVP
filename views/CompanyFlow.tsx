@@ -20,6 +20,13 @@ interface Candidate {
   skills: string[];
 }
 
+interface CreatedRole {
+  id: string;
+  title: string;
+  skills: string;
+  salary: string;
+}
+
 const CANDIDATES_POOL: Candidate[] = [
   { id: 1, n: 'Arnav Varma', c: 'IIT Delhi', r: 94, s: 'Frontend Lead', loc: 'Bangalore', exp: 'Junior', skills: ['React', 'TypeScript'] },
   { id: 2, n: 'Sanya Gupta', c: 'BITS Pilani', r: 88, s: 'Fullstack Dev', loc: 'Mumbai', exp: 'Entry Level', skills: ['Node.js', 'React'] },
@@ -39,6 +46,13 @@ const CompanyFlow: React.FC<CompanyFlowProps> = ({ onLogout }) => {
   const [roleSkills, setRoleSkills] = useState('');
   const [roleSalary, setRoleSalary] = useState('');
   const [isSuggestingRole, setIsSuggestingRole] = useState(false);
+  
+  // Roles Management State
+  const [createdRoles, setCreatedRoles] = useState<CreatedRole[]>([
+    { id: '1', title: 'Senior Frontend Architect', skills: 'React, Node.js', salary: '16-24 LPA' },
+    { id: '2', title: 'Backend Systems Engineer', skills: 'Go, Kubernetes', salary: '14-22 LPA' }
+  ]);
+  const [roleToDelete, setRoleToDelete] = useState<CreatedRole | null>(null);
 
   // Filter and Sort State
   const [filterExp, setFilterExp] = useState<string>('All');
@@ -53,7 +67,7 @@ const CompanyFlow: React.FC<CompanyFlowProps> = ({ onLogout }) => {
   const fetchSuggestions = async () => {
     setIsAiLoading(true);
     try {
-      const data = await getSmartSuggestions('company', { roles: 2, applicants: 42 });
+      const data = await getSmartSuggestions('company', { roles: createdRoles.length, applicants: 42 });
       setSuggestions(data);
     } catch (e) {
       setSuggestions([
@@ -87,6 +101,27 @@ const CompanyFlow: React.FC<CompanyFlowProps> = ({ onLogout }) => {
       setRoleSalary("12-20 LPA");
     } finally {
       setIsSuggestingRole(false);
+    }
+  };
+
+  const handleSaveRole = () => {
+    if (!roleTitle || !roleSkills || !roleSalary) return alert("Please fill all fields");
+    const newRole: CreatedRole = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: roleTitle,
+      skills: roleSkills,
+      salary: roleSalary
+    };
+    setCreatedRoles([...createdRoles, newRole]);
+    setRoleTitle('');
+    setRoleSkills('');
+    setRoleSalary('');
+  };
+
+  const handleConfirmDelete = () => {
+    if (roleToDelete) {
+      setCreatedRoles(createdRoles.filter(r => r.id !== roleToDelete.id));
+      setRoleToDelete(null);
     }
   };
 
@@ -150,21 +185,81 @@ const CompanyFlow: React.FC<CompanyFlowProps> = ({ onLogout }) => {
 
   if (view === 'create-role') {
     return (
-      <div className="min-h-screen bg-slate-50 p-16 md:p-32">
-        <div className="max-w-5xl mx-auto bg-white p-24 rounded-[100px] shadow-2xl border border-slate-100 animate-in fade-in glass-morphism relative overflow-hidden">
-           <div className="flex justify-between items-start mb-20">
-              <h2 className="text-8xl font-black text-slate-900 tracking-tighter leading-none uppercase">Create Role.</h2>
-              <button onClick={handleAiSuggestRole} disabled={isSuggestingRole} className={`bg-indigo-600 text-white px-12 py-6 rounded-[32px] text-[12px] font-black uppercase tracking-[0.4em] shadow-xl ${isSuggestingRole ? 'animate-pulse' : ''}`}> {isSuggestingRole ? 'AI Computing...' : 'AI Suggest Strategy'} </button>
-           </div>
-           <div className="space-y-16">
-             <div className="space-y-2"><label className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em]">Hiring Role Title</label><input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Senior Frontend Architect" className="w-full p-10 border-8 border-slate-50 bg-slate-50 rounded-[48px] outline-none font-black text-4xl focus:border-indigo-600 transition-all shadow-inner" /></div>
-             <div className="grid grid-cols-2 gap-12">
-               <div className="space-y-2"><label className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em]">Required Skills</label><input value={roleSkills} onChange={(e) => setRoleSkills(e.target.value)} placeholder="e.g. React, Node.js" className="w-full p-8 border-4 border-slate-50 bg-slate-50 rounded-[40px] outline-none font-black text-2xl focus:border-indigo-600 transition-all shadow-inner" /></div>
-               <div className="space-y-2"><label className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em]">Salary Band</label><input value={roleSalary} onChange={(e) => setRoleSalary(e.target.value)} placeholder="e.g. 16 - 24 LPA" className="w-full p-8 border-4 border-slate-50 bg-slate-50 rounded-[40px] outline-none font-black text-2xl focus:border-indigo-600 transition-all shadow-inner" /></div>
+      <div className="min-h-screen bg-slate-50 p-8 md:p-24 overflow-y-auto">
+        <div className="max-w-6xl mx-auto space-y-16">
+          {/* Create Role Form */}
+          <div className="bg-white p-12 md:p-24 rounded-[100px] shadow-2xl border border-slate-100 animate-in fade-in glass-morphism relative overflow-hidden">
+             <div className="flex justify-between items-start mb-20">
+                <h2 className="text-6xl md:text-8xl font-black text-slate-900 tracking-tighter leading-none uppercase">Post Role.</h2>
+                <button onClick={handleAiSuggestRole} disabled={isSuggestingRole} className={`bg-indigo-600 text-white px-12 py-6 rounded-[32px] text-[12px] font-black uppercase tracking-[0.4em] shadow-xl ${isSuggestingRole ? 'animate-pulse' : 'hover:scale-105 transition-all'}`}> {isSuggestingRole ? 'AI Computing...' : 'AI Suggest Strategy'} </button>
              </div>
-             <button onClick={() => setView('model-selection')} className="w-full bg-slate-900 text-white py-10 rounded-[64px] font-black text-4xl shadow-2xl active:scale-95 transition-all">Next: Select Model →</button>
-           </div>
+             <div className="space-y-16">
+               <div className="space-y-2"><label className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em]">Hiring Role Title</label><input value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="e.g. Senior Frontend Architect" className="w-full p-10 border-8 border-slate-50 bg-slate-50 rounded-[48px] outline-none font-black text-4xl focus:border-indigo-600 transition-all shadow-inner" /></div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                 <div className="space-y-2"><label className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em]">Required Skills</label><input value={roleSkills} onChange={(e) => setRoleSkills(e.target.value)} placeholder="e.g. React, Node.js" className="w-full p-8 border-4 border-slate-50 bg-slate-50 rounded-[40px] outline-none font-black text-2xl focus:border-indigo-600 transition-all shadow-inner" /></div>
+                 <div className="space-y-2"><label className="text-[12px] font-black uppercase text-slate-400 tracking-[0.4em]">Salary Band</label><input value={roleSalary} onChange={(e) => setRoleSalary(e.target.value)} placeholder="e.g. 16 - 24 LPA" className="w-full p-8 border-4 border-slate-50 bg-slate-50 rounded-[40px] outline-none font-black text-2xl focus:border-indigo-600 transition-all shadow-inner" /></div>
+               </div>
+               <div className="flex gap-6">
+                 <button onClick={handleSaveRole} className="flex-1 bg-white border-4 border-slate-900 text-slate-900 py-10 rounded-[64px] font-black text-3xl shadow-xl hover:bg-slate-50 transition-all active:scale-95">Add to Pipeline</button>
+                 <button onClick={() => setView('model-selection')} className="flex-[2] bg-slate-900 text-white py-10 rounded-[64px] font-black text-4xl shadow-2xl active:scale-95 transition-all">Select Hiring Model →</button>
+               </div>
+             </div>
+          </div>
+
+          {/* Active Roles List */}
+          <div className="space-y-10 animate-in slide-in-from-bottom-10">
+             <h3 className="text-4xl font-black text-slate-900 tracking-tighter uppercase italic underline decoration-indigo-600 decoration-8 underline-offset-[12px]">Your Active Roles.</h3>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               {createdRoles.length > 0 ? (
+                 createdRoles.map(role => (
+                   <div key={role.id} className="bg-white p-12 rounded-[64px] border border-slate-100 shadow-sm glass-morphism flex flex-col group hover:shadow-xl transition-all">
+                      <div className="flex justify-between items-start mb-4">
+                        <h4 className="text-3xl font-black text-slate-900 tracking-tight leading-none">{role.title}</h4>
+                        <button 
+                          onClick={() => setRoleToDelete(role)}
+                          className="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                          title="Delete Role"
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </div>
+                      <p className="text-[12px] font-black uppercase text-indigo-600 mb-8 tracking-[0.2em]">{role.salary}</p>
+                      <div className="flex flex-wrap gap-2 mb-10">
+                        {role.skills.split(',').map(s => (
+                          <span key={s} className="px-3 py-1 bg-slate-50 text-slate-400 rounded-lg text-[10px] font-black uppercase tracking-widest">{s.trim()}</span>
+                        ))}
+                      </div>
+                      <button onClick={() => setView('candidates')} className="mt-auto w-full py-4 bg-slate-50 text-slate-400 border border-slate-100 rounded-3xl font-black text-[10px] uppercase tracking-[0.4em] hover:bg-indigo-600 hover:text-white transition-all shadow-sm">View Applicants</button>
+                   </div>
+                 ))
+               ) : (
+                 <div className="col-span-full py-20 text-center bg-slate-100/50 border-4 border-dashed border-slate-200 rounded-[80px]">
+                    <p className="text-2xl font-black text-slate-300 uppercase italic">No roles published yet.</p>
+                 </div>
+               )}
+             </div>
+          </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {roleToDelete && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+            <div className="bg-white p-16 rounded-[80px] max-w-xl w-full shadow-2xl animate-in zoom-in border-8 border-white">
+              <div className="w-24 h-24 bg-rose-50 text-rose-500 rounded-[32px] flex items-center justify-center mx-auto mb-10 shadow-xl">
+                 <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </div>
+              <h3 className="text-4xl font-black text-slate-900 mb-6 text-center uppercase tracking-tighter leading-tight">Remove Role?</h3>
+              <p className="text-xl text-slate-500 font-medium italic mb-12 text-center leading-relaxed">
+                Confirm deletion of <span className="text-indigo-600 font-black">"{roleToDelete.title}"</span>. 
+                This will terminate all associated applicant tracking and audit trails.
+              </p>
+              <div className="flex gap-6">
+                <button onClick={() => setRoleToDelete(null)} className="flex-1 py-6 bg-slate-100 rounded-[32px] font-black text-slate-400 uppercase tracking-widest hover:bg-slate-200 transition-all">Cancel</button>
+                <button onClick={handleConfirmDelete} className="flex-1 py-6 bg-rose-500 text-white rounded-[32px] font-black uppercase tracking-widest shadow-2xl shadow-rose-500/30 hover:bg-rose-600 transition-all active:scale-95">Confirm Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -192,9 +287,12 @@ const CompanyFlow: React.FC<CompanyFlowProps> = ({ onLogout }) => {
     return (
       <div className="min-h-screen bg-slate-50 p-16 md:p-32 flex flex-col">
         <header className="flex justify-between items-end mb-24">
-           <div>
-              <h1 className="text-9xl font-black text-slate-900 tracking-tighter leading-none uppercase italic underline decoration-indigo-600 decoration-[12px] underline-offset-[24px]">Talent Match.</h1>
-              <p className="text-slate-500 text-3xl font-medium italic mt-4 opacity-70">AI-Ranked Candidates for {roleTitle || 'Senior Roles'}</p>
+           <div className="flex items-center gap-12">
+              <button onClick={() => setView('create-role')} className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 hover:bg-slate-50 transition-all text-2xl">←</button>
+              <div>
+                <h1 className="text-9xl font-black text-slate-900 tracking-tighter leading-none uppercase italic underline decoration-indigo-600 decoration-[12px] underline-offset-[24px]">Talent Match.</h1>
+                <p className="text-slate-500 text-3xl font-medium italic mt-4 opacity-70">AI-Ranked Candidates for Active Pipeline</p>
+              </div>
            </div>
            <button onClick={onLogout} className="text-[12px] font-black text-slate-400 uppercase tracking-[0.5em] hover:text-rose-500 transition-all">Logout</button>
         </header>

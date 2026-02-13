@@ -1,8 +1,6 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserStatus } from '../types';
 import { SKILLS_LIST, ROLE_MARKETPLACE } from '../constants';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend } from 'recharts';
 import { 
   getSmartSuggestions, 
   getCourseSuggestions, 
@@ -12,8 +10,7 @@ import {
   getSkillSuggestions,
   getComplexAnalysis,
   analyzeImage,
-  editImage,
-  getFastResponse
+  editImage
 } from '../services/geminiService';
 
 interface StudentFlowProps {
@@ -23,6 +20,57 @@ interface StudentFlowProps {
 }
 
 type SubView = 'signup' | 'otp' | 'profile' | 'skills' | 'assessment' | 'assessment-summary' | 'gap-result' | 'marketplace' | 'path-detail' | 'subscription' | 'dashboard' | 'learning' | 'readiness' | 'interviews' | 'offer' | 'success' | 'ai-lab';
+
+// PhaseIndicator Component defined outside the main component for stability
+const PhaseIndicator: React.FC<{ step: number; phase: number }> = ({ step, phase }) => (
+  <div className="mb-12">
+    <div className="flex justify-between items-end mb-4 text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600">
+      <span>Phase {phase} • Step {step} of 4</span>
+      <span className="text-slate-400">{step * 25}% PHASE COMPLETE</span>
+    </div>
+    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-50">
+      <div className="h-full bg-indigo-600 transition-all duration-700" style={{ width: `${step * 25}%` }}></div>
+    </div>
+  </div>
+);
+
+// StudentLayout Component defined outside the main component for stability
+interface StudentLayoutProps {
+  children: React.ReactNode;
+  currentTab: string;
+  setSubView: (view: SubView) => void;
+  onLogout: () => void;
+}
+
+const StudentLayout: React.FC<StudentLayoutProps> = ({ children, currentTab, setSubView, onLogout }) => (
+  <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+    <aside className="w-full md:w-96 bg-white border-r p-12 flex flex-col gap-16 h-screen sticky top-0 shadow-sm overflow-y-auto">
+       <div className="font-black text-4xl tracking-tighter flex items-center gap-4 text-slate-900">
+          <div className="w-12 h-12 bg-indigo-600 rounded-[22px] shadow-lg flex items-center justify-center text-white text-3xl">H</div> HiredPath
+       </div>
+       <nav className="flex-1 space-y-4">
+         {[
+            { id: 'dashboard', label: 'Dashboard' },
+            { id: 'learning', label: 'Learning Lab' },
+            { id: 'ai-lab', label: 'AI Strategic Lab' },
+            { id: 'marketplace', label: 'Marketplace' }
+         ].map(v => (
+           <button 
+             key={v.id} 
+             onClick={() => setSubView(v.id as SubView)} 
+             className={`w-full text-left px-10 py-6 rounded-[32px] font-black text-base transition-all ${currentTab === v.id ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
+           >
+             {v.label}
+           </button>
+         ))}
+       </nav>
+       <button onClick={onLogout} className="text-[10px] font-black text-slate-300 hover:text-rose-600 transition-all uppercase tracking-[0.4em] pb-10">Term Session</button>
+    </aside>
+    <main className="flex-1 p-16 md:p-24 overflow-y-auto">
+      {children}
+    </main>
+  </div>
+);
 
 const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }) => {
   const [subView, setSubView] = useState<SubView>('signup');
@@ -40,7 +88,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
   const [targetDomain, setTargetDomain] = useState('Frontend Architect');
   const [aiSuggestedSkills, setAiSuggestedSkills] = useState<string[]>([]);
   const [isSuggestingSkills, setIsSuggestingSkills] = useState(false);
-  const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set());
+  const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set<string>());
 
   const [learningTip, setLearningTip] = useState<any>(null);
   const [isFetchingTip, setIsFetchingTip] = useState(false);
@@ -112,7 +160,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
   const fetchLearningTip = async () => {
     setIsFetchingTip(true);
     try {
-      const tip = await getConceptExplanation('Event Loop Concurrency');
+      const tip = await getConceptExplanation('System Design and Concurrency');
       setLearningTip(tip);
     } catch (e) {
       setLearningTip({ explanation: 'Focus on Microtasks vs Macrotasks.', interviewTip: 'Explain the order of execution clearly.' });
@@ -145,7 +193,8 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
     setSubView('assessment');
     try {
       const roleName = selectedRole?.title || targetDomain;
-      const skills = Array.from(selectedSkills);
+      // Fixed: Explicitly cast the Array.from result to string[] to resolve the 'unknown[]' inference error.
+      const skills = Array.from(selectedSkills) as string[];
       const qs = await getAssessmentQuestions(roleName, skills);
       setAssessmentQuestions(qs);
     } catch (e) {
@@ -159,7 +208,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
     setIsNegotiating(true);
     try {
       const tactics = await getNegotiationTactics("₹16.5 LPA Base Offer", 94);
-      setNegotiationTactics(tactics);
+      setNegotiationTactics(tactics || "Highlight your 94% Lab Score to request a 15% bump in ESOPs.");
     } catch (e) {
       setNegotiationTactics("Highlight your 94% Lab Score to request a 15% bump in ESOPs.");
     } finally {
@@ -218,18 +267,6 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
       setIsEditingImage(false);
     }
   };
-
-  const PhaseIndicator = ({ step, phase }: { step: number; phase: number }) => (
-    <div className="mb-12">
-      <div className="flex justify-between items-end mb-4 text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600">
-        <span>Phase {phase} • Step {step} of 4</span>
-        <span className="text-slate-400">{step * 25}% PHASE COMPLETE</span>
-      </div>
-      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-50">
-        <div className="h-full bg-indigo-600 transition-all duration-700" style={{ width: `${step * 25}%` }}></div>
-      </div>
-    </div>
-  );
 
   const renderContent = () => {
     switch (subView) {
@@ -430,30 +467,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
 
       case 'marketplace':
         return (
-          <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-            <aside className="w-full md:w-96 bg-white border-r p-12 flex flex-col gap-16 h-screen sticky top-0 shadow-sm overflow-y-auto">
-               <div className="font-black text-4xl tracking-tighter flex items-center gap-4 text-slate-900">
-                  <div className="w-12 h-12 bg-indigo-600 rounded-[22px] shadow-lg flex items-center justify-center text-white text-3xl">H</div> HiredPath
-               </div>
-               <nav className="flex-1 space-y-4">
-                 {[
-                    { id: 'dashboard', label: 'Dashboard' },
-                    { id: 'learning', label: 'Learning Lab' },
-                    { id: 'ai-lab', label: 'AI Strategic Lab' },
-                    { id: 'marketplace', label: 'Marketplace' }
-                 ].map(v => (
-                   <button 
-                     key={v.id} 
-                     onClick={() => setSubView(v.id as any)} 
-                     className={`w-full text-left px-10 py-6 rounded-[32px] font-black text-base transition-all ${subView === v.id ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
-                   >
-                     {v.label}
-                   </button>
-                 ))}
-               </nav>
-               <button onClick={onLogout} className="text-[10px] font-black text-slate-300 hover:text-rose-600 transition-all uppercase tracking-[0.4em] pb-10">Term Session</button>
-            </aside>
-            <main className="flex-1 p-16 md:p-24 overflow-y-auto">
+          <StudentLayout currentTab="marketplace" setSubView={setSubView} onLogout={onLogout}>
                <h2 className="text-7xl font-black text-slate-900 tracking-tighter mb-16 uppercase leading-none italic underline decoration-indigo-600 decoration-[8px] underline-offset-[16px]">Role Marketplace.</h2>
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                  {ROLE_MARKETPLACE.map(role => (
@@ -463,7 +477,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
                          {role.hasAssurance && <span className="bg-emerald-500 text-white text-[8px] font-black uppercase px-3 py-1.5 rounded-full">Assurance Active</span>}
                       </div>
                       <div className="flex flex-wrap gap-2 mb-10">
-                        {role.companies.map(c => <span key={c} className="text-[10px] font-black uppercase text-slate-400 border px-3 py-1 rounded-full">{c}</span>)}
+                        {role.companies.map((c: string) => <span key={c} className="text-[10px] font-black uppercase text-slate-400 border px-3 py-1 rounded-full">{c}</span>)}
                       </div>
                       <div className="mt-auto space-y-4">
                          <div className="flex justify-between text-[10px] font-black uppercase text-slate-500"><span>Target Salary</span><span className="text-indigo-600">{role.salaryRange}</span></div>
@@ -472,8 +486,208 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
                    </div>
                  ))}
                </div>
-            </main>
-          </div>
+          </StudentLayout>
+        );
+
+      case 'dashboard':
+        return (
+          <StudentLayout currentTab="dashboard" setSubView={setSubView} onLogout={onLogout}>
+               <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-12 mb-24">
+                  <div>
+                    <h1 className="text-8xl font-black text-slate-900 mb-6 tracking-tighter leading-none uppercase italic">Dashboard.</h1>
+                    <p className="text-slate-500 text-3xl font-medium italic opacity-70">{selectedRole?.title || targetDomain} Track • 82% Lab Mastery</p>
+                  </div>
+                  <div className="flex gap-8">
+                    <div className="bg-white p-12 rounded-[56px] shadow-sm border border-slate-50 text-center glass-morphism"><div className="text-[10px] font-black uppercase text-slate-300 tracking-[0.3em] mb-4">Module Stat</div><div className="text-5xl font-black text-slate-900">02/04</div></div>
+                  </div>
+               </header>
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
+                  <div className="lg:col-span-2 space-y-16">
+                    <div className="bg-white p-16 rounded-[72px] shadow-sm border glass-morphism">
+                        <h4 className="font-black text-4xl mb-12 tracking-tighter text-slate-900 uppercase">Training Modules</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                          {courseSuggestions.map(course => (
+                            <div key={course.title} className="p-10 border-4 border-slate-50 rounded-[56px] hover:border-indigo-600 transition-all group bg-slate-50/30 flex flex-col shadow-sm">
+                               <h5 className="font-black text-3xl leading-none text-slate-900 group-hover:text-indigo-600 transition-all mb-4">{course.title}</h5>
+                               <span className="text-[10px] font-black uppercase bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full tracking-widest w-fit mb-12">{course.duration}</span>
+                               <ul className="space-y-4 mb-12 flex-1">
+                                 {course.curriculum.map((item: string) => <li key={item} className="text-sm font-bold text-slate-500 italic flex items-center gap-3">• {item}</li>)}
+                               </ul>
+                               <button onClick={() => setSubView('learning')} className="w-full py-6 bg-slate-900 text-white rounded-[28px] font-black text-xs uppercase tracking-[0.3em] hover:bg-indigo-600 transition-all shadow-lg active:scale-95">Enter Lab</button>
+                            </div>
+                          ))}
+                        </div>
+                    </div>
+                  </div>
+                  <div className="bg-white p-12 rounded-[64px] border shadow-sm flex flex-col glass-morphism relative overflow-hidden">
+                    <h4 className="font-black text-2xl mb-12 tracking-tight text-slate-900 uppercase italic underline decoration-indigo-600 decoration-4">AI Strategic Pulse</h4>
+                    <div className="space-y-8 flex-1">
+                      {isAiLoading ? (
+                        <div className="space-y-4 animate-pulse">
+                          {[1, 2, 3].map(i => <div key={i} className="h-24 bg-slate-50 rounded-[40px]"></div>)}
+                        </div>
+                      ) : (
+                        suggestions.map((s, i) => (
+                           <div key={i} className="p-8 rounded-[40px] border-2 border-slate-50 bg-slate-50/50 hover:border-indigo-600 transition-all group relative overflow-hidden shadow-sm">
+                              <div className="flex justify-between items-center mb-4 text-[10px] font-black uppercase text-indigo-600 tracking-widest">
+                                 <span>{s.title}</span>
+                                 <span className={`text-[8px] px-3 py-1 rounded-full ${s.priority === 'High' ? 'bg-rose-100 text-rose-600' : 'bg-slate-200 text-slate-500'}`}>{s.priority}</span>
+                              </div>
+                              <p className="text-sm font-bold text-slate-600 italic leading-relaxed mb-6">{s.suggestion}</p>
+                              <button onClick={() => handleSuggestionAction(s.targetView)} className="text-[10px] font-black uppercase text-indigo-600 underline underline-offset-4 hover:text-indigo-900">{s.actionLabel} →</button>
+                           </div>
+                        ))
+                      )}
+                    </div>
+                    <button onClick={() => setSubView('readiness')} className="mt-8 w-full bg-slate-900 text-white py-6 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl">Start Readiness Check →</button>
+                  </div>
+               </div>
+          </StudentLayout>
+        );
+
+      case 'ai-lab':
+        return (
+          <StudentLayout currentTab="ai-lab" setSubView={setSubView} onLogout={onLogout}>
+              <h2 className="text-7xl font-black text-slate-900 tracking-tighter mb-16 uppercase leading-none italic underline decoration-amber-500 decoration-[8px] underline-offset-[16px]">AI Strategic Lab.</h2>
+              
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
+                <section className="bg-white p-12 rounded-[64px] border shadow-sm glass-morphism flex flex-col">
+                  <div className="flex items-center gap-4 mb-8">
+                    <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-2xl">🧠</div>
+                    <h3 className="text-4xl font-black tracking-tighter uppercase">Strategic Forecasting</h3>
+                  </div>
+                  <div className="space-y-6 flex-1 flex flex-col">
+                    <textarea 
+                      value={complexQuery}
+                      onChange={(e) => setComplexQuery(e.target.value)}
+                      placeholder="Describe a complex career challenge, e.g., 'Model a 12-month pivot from SDE-1 to Staff Engineer in AI Infrastructure'..."
+                      className="w-full flex-1 min-h-[160px] p-8 bg-slate-50 border-4 border-transparent focus:border-amber-400 rounded-[40px] outline-none font-bold italic transition-all shadow-inner"
+                    />
+                    <button 
+                      onClick={runComplexAnalysis}
+                      disabled={isAnalyzingComplex}
+                      className="bg-amber-500 text-black px-12 py-6 rounded-[32px] font-black text-xl shadow-xl hover:scale-105 active:scale-95 transition-all"
+                    >
+                      {isAnalyzingComplex ? 'Thinking Deeply...' : 'Analyze Scenario →'}
+                    </button>
+                    {complexResult && (
+                      <div className="p-8 bg-slate-900 text-white rounded-[40px] font-medium italic animate-in fade-in overflow-y-auto max-h-[300px]">
+                        <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-4">Gemini Thought Execution</div>
+                        {complexResult}
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <div className="space-y-12">
+                  <section className="bg-white p-10 rounded-[56px] border shadow-sm glass-morphism">
+                    <div className="flex items-center gap-4 mb-8">
+                      <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-xl">📷</div>
+                      <h3 className="text-2xl font-black tracking-tighter uppercase">HiredVision Document Audit</h3>
+                    </div>
+                    <div className="space-y-6">
+                      <div className="w-full h-40 bg-slate-50 rounded-[32px] border-4 border-dashed border-slate-200 flex flex-col items-center justify-center relative overflow-hidden group">
+                        {uploadedImage ? (
+                          <img src={uploadedImage} alt="Uploaded" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-center">
+                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Upload Resume / Cert</p>
+                            <input type="file" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                            <div className="text-2xl">📎</div>
+                          </div>
+                        )}
+                      </div>
+                      <button 
+                        onClick={runImageAnalysis}
+                        disabled={isAnalyzingImage || !uploadedImage}
+                        className="w-full bg-indigo-600 text-white py-4 rounded-[24px] font-black text-sm uppercase tracking-widest shadow-xl disabled:opacity-50"
+                      >
+                        {isAnalyzingImage ? 'Analyzing...' : 'Audit Document'}
+                      </button>
+                      {imageAnalysisResult && (
+                         <div className="p-6 bg-indigo-50 border border-indigo-100 rounded-[32px] text-xs font-bold text-slate-600 italic">
+                            {imageAnalysisResult}
+                         </div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="bg-white p-10 rounded-[56px] border shadow-sm glass-morphism">
+                    <div className="flex items-center gap-4 mb-8">
+                      <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-xl">✨</div>
+                      <h3 className="text-2xl font-black tracking-tighter uppercase">Profile Enhancer</h3>
+                    </div>
+                    <div className="flex gap-6">
+                      <div className="flex-1 space-y-4">
+                        <input 
+                          value={editPrompt}
+                          onChange={(e) => setEditPrompt(e.target.value)}
+                          placeholder="e.g. 'Add professional background'..."
+                          className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-emerald-400 rounded-2xl outline-none font-bold text-xs shadow-inner"
+                        />
+                        <button 
+                          onClick={runImageEdit}
+                          disabled={isEditingImage || !uploadedImage}
+                          className="w-full bg-emerald-500 text-white py-4 rounded-[24px] font-black text-sm uppercase tracking-widest"
+                        >
+                          {isEditingImage ? 'Editing...' : 'Apply AI Edit'}
+                        </button>
+                      </div>
+                      <div className="w-32 h-32 bg-slate-900 rounded-[32px] flex items-center justify-center overflow-hidden border-4 border-slate-800 shrink-0">
+                        {editedImage ? (
+                          <img src={editedImage} alt="Edited" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-slate-600 font-black uppercase text-[8px] text-center px-4">Preview Hub</div>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+          </StudentLayout>
+        );
+
+      case 'learning':
+        return (
+          <StudentLayout currentTab="learning" setSubView={setSubView} onLogout={onLogout}>
+                 <h2 className="text-7xl font-black text-slate-900 tracking-tighter mb-16 uppercase leading-none italic underline decoration-indigo-600 decoration-[8px] underline-offset-[16px]">Learning Lab.</h2>
+                 
+                 <div className="bg-slate-900 aspect-video rounded-[80px] shadow-2xl flex items-center justify-center text-white mb-20 overflow-hidden relative group border-[12px] border-slate-800">
+                    <div className="absolute inset-0 opacity-40 bg-[url('https://picsum.photos/id/119/1200/600')] bg-cover"></div>
+                    <button className="relative z-10 w-40 h-40 bg-indigo-600 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all shadow-indigo-500/40"><svg className="w-16 h-16 ml-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4.5 3.5v13L16 10 4.5 3.5z"/></svg></button>
+                 </div>
+                 
+                 <div className="grid lg:grid-cols-3 gap-16 mb-20">
+                    <div className="lg:col-span-2">
+                       <h3 className="text-4xl font-black text-slate-900 mb-8 tracking-tighter uppercase italic">Roadmap Logic: {selectedRole?.title}</h3>
+                       <div className="space-y-6">
+                         {selectedRole?.roadmap.map((m: any) => (
+                            <div key={m.week} className={`p-8 rounded-[40px] border-4 transition-all flex items-center justify-between ${m.status === 'current' ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl' : 'bg-white border-slate-50 text-slate-900'}`}>
+                               <div className="flex items-center gap-6">
+                                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${m.status === 'current' ? 'bg-white text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>{m.week}</div>
+                                  <span className="text-xl font-black">{m.topic}</span>
+                               </div>
+                               <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full ${m.status === 'completed' ? 'bg-emerald-500 text-white' : m.status === 'current' ? 'bg-white text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>{m.status}</span>
+                            </div>
+                         ))}
+                       </div>
+                    </div>
+                    <div className="space-y-8">
+                       {learningTip && (
+                         <div className="p-10 bg-indigo-600 rounded-[56px] text-white text-left shadow-2xl relative overflow-hidden animate-in slide-in-from-right-6">
+                            <div className="absolute top-0 right-0 p-8 opacity-10 font-black text-8xl italic">AI</div>
+                            <h4 className="text-[10px] font-black uppercase text-indigo-200 tracking-[0.4em] mb-6">Lab Pulse Insight</h4>
+                            <p className="text-xl font-bold italic leading-relaxed mb-6">"{learningTip.explanation}"</p>
+                            <div className="flex items-center gap-4 bg-white/10 p-4 rounded-3xl">
+                              <span className="text-2xl">🎯</span>
+                              <p className="text-xs font-black uppercase tracking-widest text-indigo-100">Interviewer Expectation: {learningTip.interviewTip}</p>
+                            </div>
+                         </div>
+                       )}
+                       <button onClick={() => setSubView('readiness')} className="w-full bg-slate-900 text-white py-8 rounded-[40px] font-black text-2xl shadow-2xl active:scale-95 transition-all">Submit Module Progress →</button>
+                    </div>
+                 </div>
+          </StudentLayout>
         );
 
       case 'path-detail':
@@ -533,283 +747,6 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
           </div>
         );
 
-      case 'dashboard':
-        return (
-          <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-            <aside className="w-full md:w-96 bg-white border-r p-12 flex flex-col gap-16 h-screen sticky top-0 shadow-sm overflow-y-auto">
-               <div className="font-black text-4xl tracking-tighter flex items-center gap-4 text-slate-900">
-                  <div className="w-12 h-12 bg-indigo-600 rounded-[22px] shadow-lg flex items-center justify-center text-white text-3xl">H</div> HiredPath
-               </div>
-               <nav className="flex-1 space-y-4">
-                 {[
-                    { id: 'dashboard', label: 'Dashboard' },
-                    { id: 'learning', label: 'Learning Lab' },
-                    { id: 'ai-lab', label: 'AI Strategic Lab' },
-                    { id: 'marketplace', label: 'Marketplace' }
-                 ].map(v => (
-                   <button 
-                     key={v.id} 
-                     onClick={() => setSubView(v.id as any)} 
-                     className={`w-full text-left px-10 py-6 rounded-[32px] font-black text-base transition-all ${subView === v.id ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
-                   >
-                     {v.label}
-                   </button>
-                 ))}
-               </nav>
-               <button onClick={onLogout} className="text-[10px] font-black text-slate-300 hover:text-rose-600 transition-all uppercase tracking-[0.4em] pb-10">Term Session</button>
-            </aside>
-            <main className="flex-1 p-16 md:p-24 overflow-y-auto">
-               <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-12 mb-24">
-                  <div>
-                    <h1 className="text-8xl font-black text-slate-900 mb-6 tracking-tighter leading-none uppercase italic">Dashboard.</h1>
-                    <p className="text-slate-500 text-3xl font-medium italic opacity-70">{selectedRole?.title || targetDomain} Track • 82% Lab Mastery</p>
-                  </div>
-                  <div className="flex gap-8">
-                    <div className="bg-white p-12 rounded-[56px] shadow-sm border border-slate-50 text-center glass-morphism"><div className="text-[10px] font-black uppercase text-slate-300 tracking-[0.3em] mb-4">Module Stat</div><div className="text-5xl font-black text-slate-900">02/04</div></div>
-                  </div>
-               </header>
-               <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
-                  <div className="lg:col-span-2 space-y-16">
-                    <div className="bg-white p-16 rounded-[72px] shadow-sm border glass-morphism">
-                        <h4 className="font-black text-4xl mb-12 tracking-tighter text-slate-900 uppercase">Training Modules</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                          {courseSuggestions.map(course => (
-                            <div key={course.title} className="p-10 border-4 border-slate-50 rounded-[56px] hover:border-indigo-600 transition-all group bg-slate-50/30 flex flex-col shadow-sm">
-                               <h5 className="font-black text-3xl leading-none text-slate-900 group-hover:text-indigo-600 transition-all mb-4">{course.title}</h5>
-                               <span className="text-[10px] font-black uppercase bg-indigo-100 text-indigo-700 px-4 py-2 rounded-full tracking-widest w-fit mb-12">{course.duration}</span>
-                               <ul className="space-y-4 mb-12 flex-1">
-                                 {course.curriculum.map((item: string) => <li key={item} className="text-sm font-bold text-slate-500 italic flex items-center gap-3">• {item}</li>)}
-                               </ul>
-                               <button onClick={() => setSubView('learning')} className="w-full py-6 bg-slate-900 text-white rounded-[28px] font-black text-xs uppercase tracking-[0.3em] hover:bg-indigo-600 transition-all shadow-lg active:scale-95">Enter Lab</button>
-                            </div>
-                          ))}
-                        </div>
-                    </div>
-                  </div>
-                  <div className="bg-white p-12 rounded-[64px] border shadow-sm flex flex-col glass-morphism relative overflow-hidden">
-                    <h4 className="font-black text-2xl mb-12 tracking-tight text-slate-900 uppercase italic underline decoration-indigo-600 decoration-4">AI Strategic Pulse</h4>
-                    <div className="space-y-8 flex-1">
-                      {isAiLoading ? (
-                        <div className="space-y-4 animate-pulse">
-                          {[1, 2, 3].map(i => <div key={i} className="h-24 bg-slate-50 rounded-[40px]"></div>)}
-                        </div>
-                      ) : (
-                        suggestions.map((s, i) => (
-                           <div key={i} className="p-8 rounded-[40px] border-2 border-slate-50 bg-slate-50/50 hover:border-indigo-600 transition-all group relative overflow-hidden shadow-sm">
-                              <div className="flex justify-between items-center mb-4 text-[10px] font-black uppercase text-indigo-600 tracking-widest">
-                                 <span>{s.title}</span>
-                                 <span className={`text-[8px] px-3 py-1 rounded-full ${s.priority === 'High' ? 'bg-rose-100 text-rose-600' : 'bg-slate-200 text-slate-500'}`}>{s.priority}</span>
-                              </div>
-                              <p className="text-sm font-bold text-slate-600 italic leading-relaxed mb-6">{s.suggestion}</p>
-                              <button onClick={() => handleSuggestionAction(s.targetView)} className="text-[10px] font-black uppercase text-indigo-600 underline underline-offset-4 hover:text-indigo-900">{s.actionLabel} →</button>
-                           </div>
-                        ))
-                      )}
-                    </div>
-                    <button onClick={() => setSubView('readiness')} className="mt-8 w-full bg-slate-900 text-white py-6 rounded-3xl font-black text-xs uppercase tracking-widest shadow-xl">Start Readiness Check →</button>
-                  </div>
-               </div>
-            </main>
-          </div>
-        );
-
-      case 'ai-lab':
-        return (
-          <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-            <aside className="w-full md:w-96 bg-white border-r p-12 flex flex-col gap-16 h-screen sticky top-0 shadow-sm overflow-y-auto">
-               <div className="font-black text-4xl tracking-tighter flex items-center gap-4 text-slate-900">
-                  <div className="w-12 h-12 bg-indigo-600 rounded-[22px] shadow-lg flex items-center justify-center text-white text-3xl">H</div> HiredPath
-               </div>
-               <nav className="flex-1 space-y-4">
-                 {[
-                    { id: 'dashboard', label: 'Dashboard' },
-                    { id: 'learning', label: 'Learning Lab' },
-                    { id: 'ai-lab', label: 'AI Strategic Lab' },
-                    { id: 'marketplace', label: 'Marketplace' }
-                 ].map(v => (
-                   <button 
-                     key={v.id} 
-                     onClick={() => setSubView(v.id as any)} 
-                     className={`w-full text-left px-10 py-6 rounded-[32px] font-black text-base transition-all ${subView === v.id ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
-                   >
-                     {v.label}
-                   </button>
-                 ))}
-               </nav>
-               <button onClick={onLogout} className="text-[10px] font-black text-slate-300 hover:text-rose-600 transition-all uppercase tracking-[0.4em] pb-10">Term Session</button>
-            </aside>
-            <main className="flex-1 p-16 md:p-24 overflow-y-auto space-y-24">
-              <h2 className="text-7xl font-black text-slate-900 tracking-tighter mb-16 uppercase leading-none italic underline decoration-amber-500 decoration-[8px] underline-offset-[16px]">AI Strategic Lab.</h2>
-              
-              {/* Thinking Mode Section */}
-              <section className="bg-white p-12 rounded-[64px] border shadow-sm glass-morphism">
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-2xl">🧠</div>
-                  <h3 className="text-4xl font-black tracking-tighter uppercase">Deep Analysis (Thinking Mode)</h3>
-                </div>
-                <div className="space-y-6">
-                  <textarea 
-                    value={complexQuery}
-                    onChange={(e) => setComplexQuery(e.target.value)}
-                    placeholder="Describe a complex career challenge, e.g., 'Model a 12-month pivot from SDE-1 to Staff Engineer in AI Infrastructure'..."
-                    className="w-full h-40 p-8 bg-slate-50 border-4 border-transparent focus:border-amber-400 rounded-[40px] outline-none font-bold italic transition-all shadow-inner"
-                  />
-                  <button 
-                    onClick={runComplexAnalysis}
-                    disabled={isAnalyzingComplex}
-                    className="bg-amber-500 text-black px-12 py-6 rounded-[32px] font-black text-xl shadow-xl hover:scale-105 active:scale-95 transition-all"
-                  >
-                    {isAnalyzingComplex ? 'Thinking Deeply...' : 'Analyze Scenario →'}
-                  </button>
-                  {complexResult && (
-                    <div className="p-8 bg-slate-900 text-white rounded-[40px] font-medium italic animate-in fade-in">
-                      <div className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-4">Gemini Thought Execution</div>
-                      {complexResult}
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* Vision Analysis Section */}
-              <section className="bg-white p-12 rounded-[64px] border shadow-sm glass-morphism">
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-2xl">📷</div>
-                  <h3 className="text-4xl font-black tracking-tighter uppercase">Vision Review (Resume/Certificate)</h3>
-                </div>
-                <div className="grid md:grid-cols-2 gap-12">
-                  <div className="space-y-8">
-                    <div className="w-full h-64 bg-slate-50 rounded-[40px] border-4 border-dashed border-slate-200 flex flex-col items-center justify-center relative overflow-hidden group">
-                      {uploadedImage ? (
-                        <img src={uploadedImage} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="text-center p-8">
-                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Upload Resume or Certificate Photo</p>
-                          <input type="file" onChange={handleImageUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
-                          <div className="text-4xl">📎</div>
-                        </div>
-                      )}
-                    </div>
-                    <button 
-                      onClick={runImageAnalysis}
-                      disabled={isAnalyzingImage || !uploadedImage}
-                      className="w-full bg-indigo-600 text-white py-6 rounded-[32px] font-black text-xl shadow-xl disabled:opacity-50"
-                    >
-                      {isAnalyzingImage ? 'Analyzing Image...' : 'Review Document →'}
-                    </button>
-                  </div>
-                  <div className="p-8 bg-indigo-50 border border-indigo-100 rounded-[40px]">
-                    <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-4">AI Audit Verdict</h4>
-                    <p className="text-sm font-bold text-slate-600 italic leading-relaxed">
-                      {imageAnalysisResult || "Upload a photo of your resume or a technical certificate to get an instant FAANG-readiness audit."}
-                    </p>
-                  </div>
-                </div>
-              </section>
-
-              {/* Image Editing Section (Nano Banana) */}
-              <section className="bg-white p-12 rounded-[64px] border shadow-sm glass-morphism">
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-2xl">✨</div>
-                  <h3 className="text-4xl font-black tracking-tighter uppercase">Profile Photo Enhancer (Nano Banana)</h3>
-                </div>
-                <div className="grid md:grid-cols-2 gap-12">
-                  <div className="space-y-6">
-                    <input 
-                      value={editPrompt}
-                      onChange={(e) => setEditPrompt(e.target.value)}
-                      placeholder="e.g. 'Add a professional corporate background' or 'Apply a warm filter'..."
-                      className="w-full p-6 bg-slate-50 border-4 border-transparent focus:border-emerald-400 rounded-[32px] outline-none font-bold shadow-inner"
-                    />
-                    <button 
-                      onClick={runImageEdit}
-                      disabled={isEditingImage || !uploadedImage}
-                      className="w-full bg-emerald-500 text-white py-6 rounded-[32px] font-black text-xl shadow-xl"
-                    >
-                      {isEditingImage ? 'Generating Enhancement...' : 'Apply AI Edit →'}
-                    </button>
-                  </div>
-                  <div className="w-full h-80 bg-slate-900 rounded-[40px] flex items-center justify-center overflow-hidden border-8 border-slate-800">
-                    {editedImage ? (
-                      <img src={editedImage} className="w-full h-full object-cover animate-in zoom-in" />
-                    ) : (
-                      <div className="text-slate-600 font-black uppercase tracking-widest text-[10px]">Enhanced Preview Hub</div>
-                    )}
-                  </div>
-                </div>
-              </section>
-            </main>
-          </div>
-        );
-
-      case 'learning':
-        return (
-          <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-            <aside className="w-full md:w-96 bg-white border-r p-12 flex flex-col gap-16 h-screen sticky top-0 shadow-sm overflow-y-auto">
-               <div className="font-black text-4xl tracking-tighter flex items-center gap-4 text-slate-900">
-                  <div className="w-12 h-12 bg-indigo-600 rounded-[22px] shadow-lg flex items-center justify-center text-white text-3xl">H</div> HiredPath
-               </div>
-               <nav className="flex-1 space-y-4">
-                 {[
-                    { id: 'dashboard', label: 'Dashboard' },
-                    { id: 'learning', label: 'Learning Lab' },
-                    { id: 'ai-lab', label: 'AI Strategic Lab' },
-                    { id: 'marketplace', label: 'Marketplace' }
-                 ].map(v => (
-                   <button 
-                     key={v.id} 
-                     onClick={() => setSubView(v.id as any)} 
-                     className={`w-full text-left px-10 py-6 rounded-[32px] font-black text-base transition-all ${subView === v.id ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
-                   >
-                     {v.label}
-                   </button>
-                 ))}
-               </nav>
-               <button onClick={onLogout} className="text-[10px] font-black text-slate-300 hover:text-rose-600 transition-all uppercase tracking-[0.4em] pb-10">Term Session</button>
-            </aside>
-            <main className="flex-1 p-16 md:p-24 overflow-y-auto">
-               <div className="max-w-5xl mx-auto">
-                 <h2 className="text-7xl font-black text-slate-900 tracking-tighter mb-16 uppercase leading-none italic underline decoration-indigo-600 decoration-[8px] underline-offset-[16px]">Learning Lab.</h2>
-                 
-                 <div className="bg-slate-900 aspect-video rounded-[80px] shadow-2xl flex items-center justify-center text-white mb-20 overflow-hidden relative group border-[12px] border-slate-800">
-                    <div className="absolute inset-0 opacity-40 bg-[url('https://picsum.photos/id/119/1200/600')] bg-cover"></div>
-                    <button className="relative z-10 w-40 h-40 bg-indigo-600 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all shadow-indigo-500/40"><svg className="w-16 h-16 ml-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4.5 3.5v13L16 10 4.5 3.5z"/></svg></button>
-                 </div>
-                 
-                 <div className="grid lg:grid-cols-3 gap-16 mb-20">
-                    <div className="lg:col-span-2">
-                       <h3 className="text-4xl font-black text-slate-900 mb-8 tracking-tighter uppercase italic">Roadmap Logic: {selectedRole?.title}</h3>
-                       <div className="space-y-6">
-                         {selectedRole?.roadmap.map((m: any) => (
-                            <div key={m.week} className={`p-8 rounded-[40px] border-4 transition-all flex items-center justify-between ${m.status === 'current' ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl' : 'bg-white border-slate-50 text-slate-900'}`}>
-                               <div className="flex items-center gap-6">
-                                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${m.status === 'current' ? 'bg-white text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>{m.week}</div>
-                                  <span className="text-xl font-black">{m.topic}</span>
-                               </div>
-                               <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full ${m.status === 'completed' ? 'bg-emerald-500 text-white' : m.status === 'current' ? 'bg-white text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>{m.status}</span>
-                            </div>
-                         ))}
-                       </div>
-                    </div>
-                    <div className="space-y-8">
-                       {learningTip && (
-                         <div className="p-10 bg-indigo-600 rounded-[56px] text-white text-left shadow-2xl relative overflow-hidden animate-in slide-in-from-right-6">
-                            <div className="absolute top-0 right-0 p-8 opacity-10 font-black text-8xl italic">AI</div>
-                            <h4 className="text-[10px] font-black uppercase text-indigo-200 tracking-[0.4em] mb-6">Lab Pulse Insight</h4>
-                            <p className="text-xl font-bold italic leading-relaxed mb-6">"{learningTip.explanation}"</p>
-                            <div className="flex items-center gap-4 bg-white/10 p-4 rounded-3xl">
-                              <span className="text-2xl">🎯</span>
-                              <p className="text-xs font-black uppercase tracking-widest text-indigo-100">Interviewer Expectation: {learningTip.interviewTip}</p>
-                            </div>
-                         </div>
-                       )}
-                       <button onClick={() => setSubView('readiness')} className="w-full bg-slate-900 text-white py-8 rounded-[40px] font-black text-2xl shadow-2xl active:scale-95 transition-all">Submit Module Progress →</button>
-                    </div>
-                 </div>
-               </div>
-            </main>
-          </div>
-        );
-
       case 'readiness':
         return (
           <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
@@ -826,7 +763,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
 
       case 'interviews':
         return (
-          <div className="min-h-screen bg-slate-50 p-16 md:p-32">
+          <StudentLayout currentTab="interviews" setSubView={setSubView} onLogout={onLogout}>
             <h2 className="text-8xl font-black mb-24 tracking-tighter leading-none text-slate-900 uppercase italic">Hiring Hub.</h2>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
                <div className="lg:col-span-2 bg-white p-20 rounded-[80px] border shadow-sm glass-morphism relative overflow-hidden">
@@ -848,7 +785,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
                   </div>
                </div>
             </div>
-          </div>
+          </StudentLayout>
         );
 
       case 'offer':

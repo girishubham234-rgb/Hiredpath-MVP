@@ -4,7 +4,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Complex query handler with Thinking Mode
-export const getComplexAnalysis = async (query: string, context: any) => {
+export const getComplexAnalysis = async (query: string, context: any): Promise<string | undefined> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Analyze this complex scenario for a HiredPath user. Context: ${JSON.stringify(context)}. Query: ${query}`,
@@ -16,7 +16,7 @@ export const getComplexAnalysis = async (query: string, context: any) => {
 };
 
 // Low-latency response handler
-export const getFastResponse = async (prompt: string) => {
+export const getFastResponse = async (prompt: string): Promise<string | undefined> => {
   const response = await ai.models.generateContent({
     model: 'gemini-flash-lite-latest',
     contents: prompt,
@@ -25,7 +25,7 @@ export const getFastResponse = async (prompt: string) => {
 };
 
 // Image analysis service
-export const analyzeImage = async (base64Image: string, prompt: string) => {
+export const analyzeImage = async (base64Image: string, prompt: string): Promise<string | undefined> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: {
@@ -39,7 +39,7 @@ export const analyzeImage = async (base64Image: string, prompt: string) => {
 };
 
 // Image editing service (Nano Banana)
-export const editImage = async (base64Image: string, editPrompt: string) => {
+export const editImage = async (base64Image: string, editPrompt: string): Promise<string | null> => {
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
@@ -50,7 +50,6 @@ export const editImage = async (base64Image: string, editPrompt: string) => {
     }
   });
   
-  // Find the image part in the response
   for (const part of response.candidates[0].content.parts) {
     if (part.inlineData) {
       return `data:image/png;base64,${part.inlineData.data}`;
@@ -60,7 +59,7 @@ export const editImage = async (base64Image: string, editPrompt: string) => {
 };
 
 // Chatbot service
-export const getChatbotResponse = async (history: { role: string, parts: { text: string }[] }[], message: string) => {
+export const getChatbotResponse = async (history: { role: string, parts: { text: string }[] }[], message: string): Promise<string | undefined> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: [...history, { role: 'user', parts: [{ text: message }] }],
@@ -72,8 +71,7 @@ export const getChatbotResponse = async (history: { role: string, parts: { text:
   return response.text;
 };
 
-// Fix: Explicitly cast JSON.parse result to any[] for assessment questions
-export const getAssessmentQuestions = async (domain: string, skills: string[]) => {
+export const getAssessmentQuestions = async (domain: string, skills: string[]): Promise<any[]> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Generate 5 high-quality multiple choice questions for a student applying for a ${domain} role with skills in ${skills.join(', ')}. Include 4 options and the correct answer for each.`,
@@ -94,11 +92,10 @@ export const getAssessmentQuestions = async (domain: string, skills: string[]) =
       }
     }
   });
-  return JSON.parse(response.text || '[]') as any[];
+  return JSON.parse(response.text || '[]');
 };
 
-// Fix: Explicitly cast JSON.parse result to any[] for course suggestions
-export const getCourseSuggestions = async (domain: string, gaps: string[]) => {
+export const getCourseSuggestions = async (domain: string, gaps: string[]): Promise<any[]> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `For a student aiming for a ${domain} role with skill gaps in ${gaps.join(', ')}, suggest 3 specific training modules. Each should have a title, duration, and 3 bullet points of what's covered.`,
@@ -118,11 +115,10 @@ export const getCourseSuggestions = async (domain: string, gaps: string[]) => {
       }
     }
   });
-  return JSON.parse(response.text || '[]') as any[];
+  return JSON.parse(response.text || '[]');
 };
 
-// Fix: Explicitly cast JSON.parse result to any[] for smart suggestions
-export const getSmartSuggestions = async (context: string, data: any) => {
+export const getSmartSuggestions = async (context: string, data: any): Promise<any[]> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Role: ${context}. Data: ${JSON.stringify(data)}. Generate 3 actionable "Strategic Suggestions". For each, include: title, suggestion, priority (High/Medium/Low), actionLabel (the button text), and targetView (a simple string representing the view to navigate to).`,
@@ -144,10 +140,10 @@ export const getSmartSuggestions = async (context: string, data: any) => {
       }
     }
   });
-  return JSON.parse(response.text || '[]') as any[];
+  return JSON.parse(response.text || '[]');
 };
 
-export const getLiveMarketIntel = async (query: string) => {
+export const getLiveMarketIntel = async (query: string): Promise<any> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Analyze current job market trends and provide specific career "Suggestions" for: "${query}". Include salary estimates, trending skills, and major hiring companies for late 2024/2025. Be concise and professional.`,
@@ -161,7 +157,7 @@ export const getLiveMarketIntel = async (query: string) => {
   };
 };
 
-export const getNearbyOpportunities = async (lat: number, lng: number) => {
+export const getNearbyOpportunities = async (lat: number, lng: number): Promise<any> => {
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: "What major technology companies or corporate offices are located near these coordinates? Provide a brief description for each.",
@@ -180,8 +176,7 @@ export const getNearbyOpportunities = async (lat: number, lng: number) => {
   };
 };
 
-// Fix: Explicitly cast JSON.parse result to any[] for platform insights
-export const getPlatformInsights = async () => {
+export const getPlatformInsights = async (): Promise<any[]> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Generate 3 high-level "Strategic Growth Insights" for an investor pitch about an AI-driven placement platform called HiredPath. Focus on: TAM expansion, Moat strengthening, and Revenue optimization.`,
@@ -201,10 +196,9 @@ export const getPlatformInsights = async () => {
       }
     }
   });
-  return JSON.parse(response.text || '[]') as any[];
+  return JSON.parse(response.text || '[]');
 };
 
-// Fix: Add explicit return type Promise<string[]> and cast to resolve 'unknown[]' error in StudentFlow
 export const getSkillSuggestions = async (domain: string): Promise<string[]> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -217,10 +211,10 @@ export const getSkillSuggestions = async (domain: string): Promise<string[]> => 
       }
     }
   });
-  return JSON.parse(response.text || '[]') as string[];
+  return JSON.parse(response.text || '[]');
 };
 
-export const predictBatchSuccess = async (stats: any) => {
+export const predictBatchSuccess = async (stats: any): Promise<string | undefined> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Analyze these platform stats and market context: ${JSON.stringify(stats)}. Predict the placement rate for the next quarter and estimate total placement revenue. Provide deep reasoning and specific institutional recommendations.`,
@@ -231,8 +225,7 @@ export const predictBatchSuccess = async (stats: any) => {
   return response.text;
 };
 
-// Fix: Explicitly cast JSON.parse result for concept explanation
-export const getConceptExplanation = async (concept: string) => {
+export const getConceptExplanation = async (concept: string): Promise<any> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Explain the technical concept of "${concept}" for a job interview. Provide a clear explanation and one "Pro Interview Tip".`,
@@ -251,7 +244,7 @@ export const getConceptExplanation = async (concept: string) => {
   return JSON.parse(response.text || '{}');
 };
 
-export const getNegotiationTactics = async (offer: string, score: number) => {
+export const getNegotiationTactics = async (offer: string, score: number): Promise<string | undefined> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `A student has received a job offer: "${offer}". Their HiredPath Readiness Score is ${score}%. Suggest professional negotiation tactics to increase the compensation or benefits based on their high readiness score. Be specific and persuasive.`,
@@ -259,7 +252,7 @@ export const getNegotiationTactics = async (offer: string, score: number) => {
   return response.text;
 };
 
-export const getBatchRiskAnalysis = async (batchData: any) => {
+export const getBatchRiskAnalysis = async (batchData: any): Promise<string | undefined> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Analyze this college batch data: ${JSON.stringify(batchData)}. Identify the top 3 'At Risk' patterns and suggest institutional interventions.`,
