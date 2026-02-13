@@ -1,0 +1,9 @@
+{
+  "name": "HiredPath MVP",
+  "description": "A comprehensive end-to-end platform connecting students, colleges, and companies through AI-driven skill assessment, training roadmaps, and placement guarantees.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
