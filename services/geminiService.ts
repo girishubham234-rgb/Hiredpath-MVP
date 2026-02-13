@@ -72,6 +72,7 @@ export const getChatbotResponse = async (history: { role: string, parts: { text:
   return response.text;
 };
 
+// Fix: Explicitly cast JSON.parse result to any[] for assessment questions
 export const getAssessmentQuestions = async (domain: string, skills: string[]) => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -93,9 +94,10 @@ export const getAssessmentQuestions = async (domain: string, skills: string[]) =
       }
     }
   });
-  return JSON.parse(response.text || '[]');
+  return JSON.parse(response.text || '[]') as any[];
 };
 
+// Fix: Explicitly cast JSON.parse result to any[] for course suggestions
 export const getCourseSuggestions = async (domain: string, gaps: string[]) => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -116,9 +118,10 @@ export const getCourseSuggestions = async (domain: string, gaps: string[]) => {
       }
     }
   });
-  return JSON.parse(response.text || '[]');
+  return JSON.parse(response.text || '[]') as any[];
 };
 
+// Fix: Explicitly cast JSON.parse result to any[] for smart suggestions
 export const getSmartSuggestions = async (context: string, data: any) => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -141,7 +144,7 @@ export const getSmartSuggestions = async (context: string, data: any) => {
       }
     }
   });
-  return JSON.parse(response.text || '[]');
+  return JSON.parse(response.text || '[]') as any[];
 };
 
 export const getLiveMarketIntel = async (query: string) => {
@@ -177,6 +180,7 @@ export const getNearbyOpportunities = async (lat: number, lng: number) => {
   };
 };
 
+// Fix: Explicitly cast JSON.parse result to any[] for platform insights
 export const getPlatformInsights = async () => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -197,10 +201,11 @@ export const getPlatformInsights = async () => {
       }
     }
   });
-  return JSON.parse(response.text || '[]');
+  return JSON.parse(response.text || '[]') as any[];
 };
 
-export const getSkillSuggestions = async (domain: string) => {
+// Fix: Add explicit return type Promise<string[]> and cast to resolve 'unknown[]' error in StudentFlow
+export const getSkillSuggestions = async (domain: string): Promise<string[]> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `For a student aiming for a ${domain} role, suggest 5 trending or essential skills they should declare. Return as a JSON array of strings.`,
@@ -212,7 +217,7 @@ export const getSkillSuggestions = async (domain: string) => {
       }
     }
   });
-  return JSON.parse(response.text || '[]');
+  return JSON.parse(response.text || '[]') as string[];
 };
 
 export const predictBatchSuccess = async (stats: any) => {
@@ -226,6 +231,7 @@ export const predictBatchSuccess = async (stats: any) => {
   return response.text;
 };
 
+// Fix: Explicitly cast JSON.parse result for concept explanation
 export const getConceptExplanation = async (concept: string) => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',

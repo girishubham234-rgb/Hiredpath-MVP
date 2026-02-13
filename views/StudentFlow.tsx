@@ -26,7 +26,7 @@ type SubView = 'signup' | 'otp' | 'profile' | 'skills' | 'assessment' | 'assessm
 
 const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }) => {
   const [subView, setSubView] = useState<SubView>('signup');
-  const [selectedRole, setSelectedRole] = useState<any>(null);
+  const [selectedRole, setSelectedRole] = useState<any>(ROLE_MARKETPLACE[0]);
   const [assessmentScore, setAssessmentScore] = useState(0);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -73,12 +73,12 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
     if (subView === 'learning') {
       fetchLearningTip();
     }
-  }, [subView]);
+  }, [subView, selectedRole]);
 
   const fetchSuggestions = async () => {
     setIsAiLoading(true);
     try {
-      const data = await getSmartSuggestions('student', { score: assessmentScore || 94, target: targetDomain });
+      const data = await getSmartSuggestions('student', { score: assessmentScore || 94, target: selectedRole?.title || targetDomain });
       setSuggestions(data);
     } catch (e) {
       setSuggestions([
@@ -100,7 +100,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
   const fetchCourseSuggestions = async () => {
     setIsFetchingCourses(true);
     try {
-      const courses = await getCourseSuggestions(targetDomain, ['Architecture', 'Logic']);
+      const courses = await getCourseSuggestions(selectedRole?.title || targetDomain, ['Architecture', 'Logic']);
       setCourseSuggestions(courses);
     } catch (e) {
       setCourseSuggestions([{ title: 'Elite Systems Design', duration: '2 Weeks', curriculum: ['Clean Code', 'Scalability'] }]);
@@ -144,7 +144,6 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
     setIsGeneratingAssessment(true);
     setSubView('assessment');
     try {
-      // Role-specific questions based on the selected track or target domain
       const roleName = selectedRole?.title || targetDomain;
       const skills = Array.from(selectedSkills);
       const qs = await getAssessmentQuestions(roleName, skills);
@@ -168,12 +167,11 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
     }
   };
 
-  // AI Lab Handlers
   const runComplexAnalysis = async () => {
     if (!complexQuery.trim()) return;
     setIsAnalyzingComplex(true);
     try {
-      const res = await getComplexAnalysis(complexQuery, { domain: targetDomain, score: assessmentScore });
+      const res = await getComplexAnalysis(complexQuery, { domain: selectedRole?.title || targetDomain, score: assessmentScore });
       setComplexResult(res || '');
     } catch (e) {
       setComplexResult("Analysis failed. Try again.");
@@ -432,25 +430,49 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
 
       case 'marketplace':
         return (
-          <div className="min-h-screen bg-slate-50 p-12 md:p-24">
-             <h2 className="text-7xl font-black text-slate-900 tracking-tighter mb-16 uppercase leading-none">Role Hub.</h2>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-               {ROLE_MARKETPLACE.map(role => (
-                 <div key={role.id} onClick={() => { setSelectedRole(role); setSubView('path-detail'); }} className="bg-white rounded-[56px] border border-slate-100 p-12 shadow-sm hover:shadow-2xl transition-all group cursor-pointer glass-morphism flex flex-col">
-                    <div className="flex justify-between items-start mb-10">
-                       <h3 className="font-black text-3xl group-hover:text-indigo-600 transition-all leading-tight text-slate-900">{role.title}</h3>
-                       {role.hasAssurance && <span className="bg-emerald-500 text-white text-[8px] font-black uppercase px-3 py-1.5 rounded-full">Assurance Active</span>}
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-10">
-                      {role.companies.map(c => <span key={c} className="text-[10px] font-black uppercase text-slate-400 border px-3 py-1 rounded-full">{c}</span>)}
-                    </div>
-                    <div className="mt-auto space-y-4">
-                       <div className="flex justify-between text-[10px] font-black uppercase text-slate-500"><span>Target Salary</span><span className="text-indigo-600">{role.salaryRange}</span></div>
-                       <button className="w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg group-hover:bg-indigo-600 transition-all shadow-xl">View Roadmaps</button>
-                    </div>
-                 </div>
-               ))}
-             </div>
+          <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+            <aside className="w-full md:w-96 bg-white border-r p-12 flex flex-col gap-16 h-screen sticky top-0 shadow-sm overflow-y-auto">
+               <div className="font-black text-4xl tracking-tighter flex items-center gap-4 text-slate-900">
+                  <div className="w-12 h-12 bg-indigo-600 rounded-[22px] shadow-lg flex items-center justify-center text-white text-3xl">H</div> HiredPath
+               </div>
+               <nav className="flex-1 space-y-4">
+                 {[
+                    { id: 'dashboard', label: 'Dashboard' },
+                    { id: 'learning', label: 'Learning Lab' },
+                    { id: 'ai-lab', label: 'AI Strategic Lab' },
+                    { id: 'marketplace', label: 'Marketplace' }
+                 ].map(v => (
+                   <button 
+                     key={v.id} 
+                     onClick={() => setSubView(v.id as any)} 
+                     className={`w-full text-left px-10 py-6 rounded-[32px] font-black text-base transition-all ${subView === v.id ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
+                   >
+                     {v.label}
+                   </button>
+                 ))}
+               </nav>
+               <button onClick={onLogout} className="text-[10px] font-black text-slate-300 hover:text-rose-600 transition-all uppercase tracking-[0.4em] pb-10">Term Session</button>
+            </aside>
+            <main className="flex-1 p-16 md:p-24 overflow-y-auto">
+               <h2 className="text-7xl font-black text-slate-900 tracking-tighter mb-16 uppercase leading-none italic underline decoration-indigo-600 decoration-[8px] underline-offset-[16px]">Role Marketplace.</h2>
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                 {ROLE_MARKETPLACE.map(role => (
+                   <div key={role.id} onClick={() => { setSelectedRole(role); setSubView('path-detail'); }} className="bg-white rounded-[56px] border border-slate-100 p-12 shadow-sm hover:shadow-2xl transition-all group cursor-pointer glass-morphism flex flex-col">
+                      <div className="flex justify-between items-start mb-10">
+                         <h3 className="font-black text-3xl group-hover:text-indigo-600 transition-all leading-tight text-slate-900">{role.title}</h3>
+                         {role.hasAssurance && <span className="bg-emerald-500 text-white text-[8px] font-black uppercase px-3 py-1.5 rounded-full">Assurance Active</span>}
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-10">
+                        {role.companies.map(c => <span key={c} className="text-[10px] font-black uppercase text-slate-400 border px-3 py-1 rounded-full">{c}</span>)}
+                      </div>
+                      <div className="mt-auto space-y-4">
+                         <div className="flex justify-between text-[10px] font-black uppercase text-slate-500"><span>Target Salary</span><span className="text-indigo-600">{role.salaryRange}</span></div>
+                         <button className="w-full bg-slate-900 text-white py-5 rounded-[24px] font-black text-lg group-hover:bg-indigo-600 transition-all shadow-xl">Audit Path Strategy</button>
+                      </div>
+                   </div>
+                 ))}
+               </div>
+            </main>
           </div>
         );
 
@@ -458,10 +480,10 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
         return (
           <div className="min-h-screen bg-white p-12 md:p-24 max-w-7xl mx-auto">
             <button onClick={() => setSubView('marketplace')} className="text-[10px] font-black text-indigo-600 mb-12 uppercase tracking-[0.4em] flex items-center gap-3">← Back to Hub</button>
-            <h1 className="text-8xl font-black mb-16 tracking-tighter leading-none text-slate-900 uppercase italic underline decoration-indigo-600 decoration-8 underline-offset-[16px]">{selectedRole.title} Path.</h1>
+            <h1 className="text-8xl font-black mb-16 tracking-tighter leading-none text-slate-900 uppercase italic underline decoration-indigo-600 decoration-8 underline-offset-[16px]">{selectedRole?.title} Path.</h1>
             <div className="grid lg:grid-cols-3 gap-24">
                <div className="lg:col-span-2 space-y-10">
-                 {selectedRole.roadmap.map((r: any) => (
+                 {selectedRole?.roadmap.map((r: any) => (
                     <div key={r.week} className={`flex gap-10 items-start group`}>
                        <div className={`w-20 h-20 rounded-[32px] flex items-center justify-center font-black text-3xl transition-all shadow-sm ${r.status === 'completed' ? 'bg-emerald-100 text-emerald-600' : r.status === 'current' ? 'bg-indigo-600 text-white shadow-2xl scale-110' : 'bg-slate-50 text-slate-200'}`}>{r.week}</div>
                        <div className={`flex-1 p-10 rounded-[48px] border-2 transition-all ${r.status === 'current' ? 'border-indigo-600 bg-indigo-50/20 shadow-xl' : 'border-slate-100 bg-white'}`}>
@@ -475,7 +497,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
                   <div className="bg-slate-900 text-white p-12 rounded-[64px] shadow-2xl">
                      <h4 className="font-black text-2xl mb-8 tracking-tight uppercase italic underline decoration-indigo-500 decoration-4">Placement Guarantees</h4>
                      <ul className="space-y-6">
-                        {selectedRole.guarantees.map((g: string) => (
+                        {selectedRole?.guarantees.map((g: string) => (
                           <li key={g} className="text-sm font-bold text-slate-400 italic flex items-center gap-4"><div className="w-2 h-2 rounded-full bg-indigo-500"></div> {g}</li>
                         ))}
                      </ul>
@@ -519,13 +541,18 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
                   <div className="w-12 h-12 bg-indigo-600 rounded-[22px] shadow-lg flex items-center justify-center text-white text-3xl">H</div> HiredPath
                </div>
                <nav className="flex-1 space-y-4">
-                 {['Dashboard', 'Learning Lab', 'AI Strategic Lab', 'Marketplace'].map(v => (
+                 {[
+                    { id: 'dashboard', label: 'Dashboard' },
+                    { id: 'learning', label: 'Learning Lab' },
+                    { id: 'ai-lab', label: 'AI Strategic Lab' },
+                    { id: 'marketplace', label: 'Marketplace' }
+                 ].map(v => (
                    <button 
-                     key={v} 
-                     onClick={() => setSubView(v.toLowerCase().replace(/ /g, '-') as any)} 
-                     className={`w-full text-left px-10 py-6 rounded-[32px] font-black text-base transition-all ${subView.includes(v.toLowerCase().split(' ')[0]) ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
+                     key={v.id} 
+                     onClick={() => setSubView(v.id as any)} 
+                     className={`w-full text-left px-10 py-6 rounded-[32px] font-black text-base transition-all ${subView === v.id ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
                    >
-                     {v}
+                     {v.label}
                    </button>
                  ))}
                </nav>
@@ -535,7 +562,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
                <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-12 mb-24">
                   <div>
                     <h1 className="text-8xl font-black text-slate-900 mb-6 tracking-tighter leading-none uppercase italic">Dashboard.</h1>
-                    <p className="text-slate-500 text-3xl font-medium italic opacity-70">{targetDomain} Track • 82% Lab Mastery</p>
+                    <p className="text-slate-500 text-3xl font-medium italic opacity-70">{selectedRole?.title || targetDomain} Track • 82% Lab Mastery</p>
                   </div>
                   <div className="flex gap-8">
                     <div className="bg-white p-12 rounded-[56px] shadow-sm border border-slate-50 text-center glass-morphism"><div className="text-[10px] font-black uppercase text-slate-300 tracking-[0.3em] mb-4">Module Stat</div><div className="text-5xl font-black text-slate-900">02/04</div></div>
@@ -589,14 +616,33 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
       case 'ai-lab':
         return (
           <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-            <aside className="w-full md:w-96 bg-white border-r p-12 flex flex-col gap-16 h-screen sticky top-0 shadow-sm">
-              <button onClick={() => setSubView('dashboard')} className="font-black text-[10px] text-slate-400 hover:text-indigo-600 transition-all flex items-center gap-3 uppercase tracking-[0.4em]">← Exit Lab</button>
-              <div className="text-4xl font-black tracking-tighter uppercase italic">AI Strategic Lab</div>
-              <p className="text-sm font-bold text-slate-500 italic">Advanced reasoning, vision analysis, and image enhancement powered by Gemini.</p>
+            <aside className="w-full md:w-96 bg-white border-r p-12 flex flex-col gap-16 h-screen sticky top-0 shadow-sm overflow-y-auto">
+               <div className="font-black text-4xl tracking-tighter flex items-center gap-4 text-slate-900">
+                  <div className="w-12 h-12 bg-indigo-600 rounded-[22px] shadow-lg flex items-center justify-center text-white text-3xl">H</div> HiredPath
+               </div>
+               <nav className="flex-1 space-y-4">
+                 {[
+                    { id: 'dashboard', label: 'Dashboard' },
+                    { id: 'learning', label: 'Learning Lab' },
+                    { id: 'ai-lab', label: 'AI Strategic Lab' },
+                    { id: 'marketplace', label: 'Marketplace' }
+                 ].map(v => (
+                   <button 
+                     key={v.id} 
+                     onClick={() => setSubView(v.id as any)} 
+                     className={`w-full text-left px-10 py-6 rounded-[32px] font-black text-base transition-all ${subView === v.id ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
+                   >
+                     {v.label}
+                   </button>
+                 ))}
+               </nav>
+               <button onClick={onLogout} className="text-[10px] font-black text-slate-300 hover:text-rose-600 transition-all uppercase tracking-[0.4em] pb-10">Term Session</button>
             </aside>
             <main className="flex-1 p-16 md:p-24 overflow-y-auto space-y-24">
+              <h2 className="text-7xl font-black text-slate-900 tracking-tighter mb-16 uppercase leading-none italic underline decoration-amber-500 decoration-[8px] underline-offset-[16px]">AI Strategic Lab.</h2>
+              
               {/* Thinking Mode Section */}
-              <section className="bg-white p-12 rounded-[64px] border shadow-sm">
+              <section className="bg-white p-12 rounded-[64px] border shadow-sm glass-morphism">
                 <div className="flex items-center gap-4 mb-8">
                   <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-2xl">🧠</div>
                   <h3 className="text-4xl font-black tracking-tighter uppercase">Deep Analysis (Thinking Mode)</h3>
@@ -625,7 +671,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
               </section>
 
               {/* Vision Analysis Section */}
-              <section className="bg-white p-12 rounded-[64px] border shadow-sm">
+              <section className="bg-white p-12 rounded-[64px] border shadow-sm glass-morphism">
                 <div className="flex items-center gap-4 mb-8">
                   <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center text-2xl">📷</div>
                   <h3 className="text-4xl font-black tracking-tighter uppercase">Vision Review (Resume/Certificate)</h3>
@@ -661,7 +707,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
               </section>
 
               {/* Image Editing Section (Nano Banana) */}
-              <section className="bg-white p-12 rounded-[64px] border shadow-sm">
+              <section className="bg-white p-12 rounded-[64px] border shadow-sm glass-morphism">
                 <div className="flex items-center gap-4 mb-8">
                   <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center text-2xl">✨</div>
                   <h3 className="text-4xl font-black tracking-tighter uppercase">Profile Photo Enhancer (Nano Banana)</h3>
@@ -698,35 +744,67 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
       case 'learning':
         return (
           <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-            <aside className="w-full md:w-96 bg-white border-r p-12 flex flex-col gap-12 h-screen sticky top-0 shadow-sm overflow-y-auto">
-               <button onClick={() => setSubView('dashboard')} className="font-black text-[10px] text-slate-400 hover:text-indigo-600 transition-all flex items-center gap-3 uppercase tracking-[0.4em]">← Exit Lab</button>
-               <div className="space-y-6">
-                 {['Architecture', 'Logic Flow', 'Deployment Edge', 'Security Hub'].map((m, i) => (
-                    <div key={m} className={`p-8 rounded-[40px] text-base font-black border-4 transition-all cursor-pointer shadow-sm ${i === 1 ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white text-slate-400 border-slate-50 hover:border-indigo-100'}`}> {i+1}. {m} </div>
-                 ))}
+            <aside className="w-full md:w-96 bg-white border-r p-12 flex flex-col gap-16 h-screen sticky top-0 shadow-sm overflow-y-auto">
+               <div className="font-black text-4xl tracking-tighter flex items-center gap-4 text-slate-900">
+                  <div className="w-12 h-12 bg-indigo-600 rounded-[22px] shadow-lg flex items-center justify-center text-white text-3xl">H</div> HiredPath
                </div>
+               <nav className="flex-1 space-y-4">
+                 {[
+                    { id: 'dashboard', label: 'Dashboard' },
+                    { id: 'learning', label: 'Learning Lab' },
+                    { id: 'ai-lab', label: 'AI Strategic Lab' },
+                    { id: 'marketplace', label: 'Marketplace' }
+                 ].map(v => (
+                   <button 
+                     key={v.id} 
+                     onClick={() => setSubView(v.id as any)} 
+                     className={`w-full text-left px-10 py-6 rounded-[32px] font-black text-base transition-all ${subView === v.id ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-900 hover:bg-slate-50'}`}
+                   >
+                     {v.label}
+                   </button>
+                 ))}
+               </nav>
+               <button onClick={onLogout} className="text-[10px] font-black text-slate-300 hover:text-rose-600 transition-all uppercase tracking-[0.4em] pb-10">Term Session</button>
             </aside>
-            <main className="flex-1 p-16 md:p-24 overflow-y-auto text-center">
+            <main className="flex-1 p-16 md:p-24 overflow-y-auto">
                <div className="max-w-5xl mx-auto">
+                 <h2 className="text-7xl font-black text-slate-900 tracking-tighter mb-16 uppercase leading-none italic underline decoration-indigo-600 decoration-[8px] underline-offset-[16px]">Learning Lab.</h2>
+                 
                  <div className="bg-slate-900 aspect-video rounded-[80px] shadow-2xl flex items-center justify-center text-white mb-20 overflow-hidden relative group border-[12px] border-slate-800">
                     <div className="absolute inset-0 opacity-40 bg-[url('https://picsum.photos/id/119/1200/600')] bg-cover"></div>
                     <button className="relative z-10 w-40 h-40 bg-indigo-600 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all shadow-indigo-500/40"><svg className="w-16 h-16 ml-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4.5 3.5v13L16 10 4.5 3.5z"/></svg></button>
                  </div>
-                 <h1 className="text-6xl font-black text-slate-900 tracking-tighter uppercase mb-12 italic">Session: Master Logic</h1>
                  
-                 {learningTip && (
-                   <div className="max-w-3xl mx-auto p-10 bg-indigo-600 rounded-[56px] text-white text-left shadow-2xl mb-12 relative overflow-hidden animate-in slide-in-from-bottom-6">
-                      <div className="absolute top-0 right-0 p-8 opacity-10 font-black text-8xl italic">AI</div>
-                      <h4 className="text-[10px] font-black uppercase text-indigo-200 tracking-[0.4em] mb-6">Lab Pulse Insight</h4>
-                      <p className="text-xl font-bold italic leading-relaxed mb-6">"{learningTip.explanation}"</p>
-                      <div className="flex items-center gap-4 bg-white/10 p-4 rounded-3xl">
-                        <span className="text-2xl">🎯</span>
-                        <p className="text-xs font-black uppercase tracking-widest text-indigo-100">Interviewer Expectation: {learningTip.interviewTip}</p>
-                      </div>
-                   </div>
-                 )}
-
-                 <button onClick={() => setSubView('readiness')} className="bg-indigo-600 text-white px-20 py-10 rounded-[48px] font-black text-3xl shadow-2xl active:scale-95 transition-all shadow-indigo-200">Submit for Evaluation →</button>
+                 <div className="grid lg:grid-cols-3 gap-16 mb-20">
+                    <div className="lg:col-span-2">
+                       <h3 className="text-4xl font-black text-slate-900 mb-8 tracking-tighter uppercase italic">Roadmap Logic: {selectedRole?.title}</h3>
+                       <div className="space-y-6">
+                         {selectedRole?.roadmap.map((m: any) => (
+                            <div key={m.week} className={`p-8 rounded-[40px] border-4 transition-all flex items-center justify-between ${m.status === 'current' ? 'bg-indigo-600 border-indigo-600 text-white shadow-xl' : 'bg-white border-slate-50 text-slate-900'}`}>
+                               <div className="flex items-center gap-6">
+                                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${m.status === 'current' ? 'bg-white text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>{m.week}</div>
+                                  <span className="text-xl font-black">{m.topic}</span>
+                               </div>
+                               <span className={`text-[8px] font-black uppercase px-3 py-1 rounded-full ${m.status === 'completed' ? 'bg-emerald-500 text-white' : m.status === 'current' ? 'bg-white text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>{m.status}</span>
+                            </div>
+                         ))}
+                       </div>
+                    </div>
+                    <div className="space-y-8">
+                       {learningTip && (
+                         <div className="p-10 bg-indigo-600 rounded-[56px] text-white text-left shadow-2xl relative overflow-hidden animate-in slide-in-from-right-6">
+                            <div className="absolute top-0 right-0 p-8 opacity-10 font-black text-8xl italic">AI</div>
+                            <h4 className="text-[10px] font-black uppercase text-indigo-200 tracking-[0.4em] mb-6">Lab Pulse Insight</h4>
+                            <p className="text-xl font-bold italic leading-relaxed mb-6">"{learningTip.explanation}"</p>
+                            <div className="flex items-center gap-4 bg-white/10 p-4 rounded-3xl">
+                              <span className="text-2xl">🎯</span>
+                              <p className="text-xs font-black uppercase tracking-widest text-indigo-100">Interviewer Expectation: {learningTip.interviewTip}</p>
+                            </div>
+                         </div>
+                       )}
+                       <button onClick={() => setSubView('readiness')} className="w-full bg-slate-900 text-white py-8 rounded-[40px] font-black text-2xl shadow-2xl active:scale-95 transition-all">Submit Module Progress →</button>
+                    </div>
+                 </div>
                </div>
             </main>
           </div>
@@ -782,7 +860,7 @@ const StudentFlow: React.FC<StudentFlowProps> = ({ status, setStatus, onLogout }
                   <div className="bg-white/5 p-16 rounded-[64px] border border-white/10 backdrop-blur-xl">
                      <div className="text-6xl font-black text-white tracking-tighter mb-10 leading-none">₹16.5 LPA</div>
                      <h3 className="text-4xl font-black mb-4 tracking-tight text-indigo-400 uppercase italic leading-none">Senior Frontend Architect</h3>
-                     <p className="text-slate-500 font-bold uppercase text-[12px] tracking-[0.4em]">Google India • Full Time</p>
+                     <p className="text-slate-500 font-bold uppercase text-[12px] tracking-tighter">Google India • Full Time</p>
                   </div>
                   <div className="bg-slate-900 p-16 rounded-[64px] border border-white/5 flex flex-col justify-center">
                      <h4 className="text-[12px] font-black uppercase text-indigo-500 mb-8 tracking-[0.4em]">AI Negotiation Advisor</h4>
